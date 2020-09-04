@@ -1,0 +1,663 @@
+---
+title: "The 3-Season Run That Immortalized Russell Westbrook and the Title \"Walking Triple-Double\" "
+author: "Quang Nguyen"
+date: "Spring 2020"
+output: html_document
+---
+
+# Abstract
+
+The purpose of this project was to look at Russell Westbrook's infamous last 3 seasons with the Oklahoma City Thunder, where he averaged a triple-double in each of those years. We first looked at some notable triple-double box scores, before verifying the relationships between whether a triple-double is recorded and several categorical and quantitative variables. It turns out to be that game result, opponent's conference, minutes played, and plus/minus are helpful predictors for triple-double, while this is not the case for Westbrook's team's playing side. Moreover, we observed and compared two visualization methods related to interactive viewing of spatial data.
+
+# Introduction
+
+## Russell Westbrook 
+
+The National Basketball Association (NBA) is indisputably the top professional basketball league in the world, because of its competition quality, overall balance, and popularity. The league consists of the very best basketball players in the world, who come together to display the highest level of hoops on the planet, and more importantly compete for the prestigious Larry O'Brien NBA Championship Trophy. Over the last few years, the NBA has shifted to a guard-dominant league, as many guard-positioned players have flourished and become household names around the world. Among those athletes, Russell Westbrook has emerged as one of the best, most exciting, and most fun to watch superstars in the NBA. 
+
+A native of California, Westbrook was a product of the famous UCLA Bruins basketball brand, where he spent three years playing on the floor of Nell and John Wooden Court. He then got drafted by the Seattle SuperSonics in 2008, who soon relocated and switched name to Oklahoma City Thunder before the start of Westbrook's rookie season. During his memorable 11-year run with the Thunder, the 6'3'', 200lbs point guard is well-known for his athleticism, explosiveness, agility, and tenacity; with the signature move of fierce drives toward the rim at full speed. In addition, Westbrook played alongside many amazing and talented teammates, most notably, Kevin Durant, and achieved numerous individual awards. His last 3 seasons with OKC, especially 2016-17 - the first year after Durant's departure, was certainly the apex of Westbrook's NBA career, where he won an illustrious NBA Most Valuable Player (MVP) award, and on top of it all, Westbrook averaged a "triple-double" for each of those three campaigns. 
+
+## Triple-Doubles
+
+In basketball, a triple-double occurs when a player accumulates double-digit figures (ten or more) in three of five major statistical categories — points, rebounds, assists, steals, or blocks — in a single game. The most common type of triple-double in the NBA is having double digits in points, rebounds, and assists, although triple-doubles with steals or blocks have happened several times in the history of the league. This term became an official NBA statistics in the 1979-80 season, but long before they knew what to call a triple-double, a player by the name of Oscar Robertson, averaged this feat over the entire 1961-62 season. Besides "The Big O", other the famous "triple-double capable" players in the history of the association are Magic Johnson, Jason Kidd, LeBron James, and of course, our very own Russell Westbrook.
+
+Over the last half-decade, triple-double has become a popular phenomenon in the NBA, as the number of players tallying this statistics has gone up dramatically, compared to earlier periods. This significant rise happened as a natural result of the severe stylistic changes the league has undergone, including the increase in pace and the upsurgence of more floor spacing and small ball lineups. As mentioned before, Russell Westbrook averaged a triple-double for three straight season, from 2016-17 to 2018-19, which is something that has never been accomplished before. In addition, Westbrook has also set and broken many records related to triple-doubles, including most triple-doubles in a regular season, longest game streak of triple-doubles, or most assists recorded in a triple-double. However, despite all of his achievements, Westbrooks also faced reams of criticism on his of "stat-padding" playing style and "gaudy" triple-doubles. But at the end of the day, we must recognize how great of a player Westbrook is and how much he has contributed to the game of basketball.
+
+Since triple-double has been such an interesting basketball statistics over the last few years, we would like to take a closer look at this box score item for Russell Westbrook during OKC's post-Kevin Durant era. Furthermore, we are interested in seeing how triple-double and different basketball variables are related. To that end, we're now moving on to the first and arguably most important phase of this project: getting the data.
+
+# Data Importing and Tidying
+
+Before we begin, the following packages are loaded to help us with all stages of this project.
+
+```{r, message=FALSE}
+library(tidyverse)
+library(mosaic)
+library(rvest)
+library(kableExtra)
+```
+
+We also write this function which will later on help us with table formatting.
+
+```{r}
+mykable <- function(df){   #takes in the data frame and prints out nice table output
+  kable(df) %>%  
+  kable_styling("striped", full_width = FALSE)
+}
+```
+
+The data we'll be using for this project will be harvested from the website Basketball-Reference.com. Basketball Reference is a website containing data on NBA players, scores, team statistics, historical data, and many other NBA-related information. It is a great resource for any kind of NBA statistical analysis, and is very popular among the NBA world, as many NBA analysts, writers, podcasters, and fans across America go to this site in the first place for information. David Leonhardt of the New York Times once praised Basketball-Reference’s database as "a gift straight from the basketball gods." 
+
+For this particular project, this website is extremely useful, since it has pretty much every information about an NBA player, from his statistics and awards to his height, weight, nickname(s), or even his twitter username. We are interested in looking at looking at Russell Westbrook's statistics, in particular his triple-doubles, during his last three seasons - 2015-16, 2016-17, and 2017-18 - with the Oklahoma City Thunder. To that end, the technique of web scraping is utilized to get Russ's statistics over his last 3 seasons with the Thunder. We take advantage of scraping functions from the ``rvest`` package in R and write a function to grab the statistics table of each of Russ' last 3 OKC campaigns.
+
+This function takes in the ending year of the season, executes some data-harvesting tasks to read in the data from the webpage, and performs some table transformations, including renaming, creating new variables and selecting columns that are needed in further steps.
+
+```{r}
+RussData <- function(Year){
+  # get url
+  RussURL <- paste("https://www.basketball-reference.com/players/w/westbru01/gamelog/", Year, "/", sep = "")
+  # grab all content from the raw html file
+  RussHTML <- read_html(RussURL)
+  # parse html code into data tables, use index to get our desired table
+  RussStats <- html_table(RussHTML, fill = TRUE)[[8]]
+  
+  # rename the columns
+  names(RussStats)[6] <- "side"
+  names(RussStats)[8] <- "result"
+  RussStats <- filter(RussStats, GS == "1") # filter out the games he didn't play
+  RussStats[RussStats == "CHO"] <- "CHA" # correct abbreviation for Charlotte
+  
+  # create a vector of teams from the Western Conference for further usage
+  WestTeams <- c("LAL", "UTA", "LAC", "DEN", "DAL", "HOU", "OKC", "MEM",
+                 "SAS", "PHO", "POR", "NOP", "SAC", "MIN", "GSW")
+  
+  # make sure all the stats are of numeric type
+  for (i in c(11:ncol(RussStats))){
+    RussStats[,i] <- as.numeric(RussStats[,i])
+  }
+  
+  # transforming the table
+  RussStats <- RussStats %>% 
+    separate(MP, into = c("Min", "Sec")) %>%  # separate the minutes variable (min:sec)
+    mutate(Season = paste(Year - 1, "-", Year, sep = ""), # create season variable
+           Side = ifelse(side == "@", "Away", "Home"), # which side OKC is
+           Result = ifelse(grepl("W", result), "Win", "Loss"), # game result for OKC
+           OppConf = ifelse(Opp %in% WestTeams, "West", "East"), # opponent's conference
+           Minutes = round(as.integer(Min) + as.integer(Sec)/60, 2), # Russ' playing time in minutes
+           TripDbl = ifelse(PTS >= 10 & AST >= 10 & TRB >= 10, "Yes", "No")) %>%  # triple-double
+    select(Season, Result, Side, Opp, OppConf, Minutes,
+           FG, FGA, `FG%`, `3P`, `3PA`, `3P%`, FT, FTA, `FT%`,
+           ORB, DRB, TRB, PTS, AST, TripDbl,
+           STL, BLK, TOV, PF, `+/-`)
+}
+```
+
+Now we want to combine all the data from every year into one big data table. To do this, we use a ``for`` loop, which allows us to iterate over the year range, then join the tables together. A ``full_join`` is used here to append the tables, after the full dataset is initialize by getting the data from the first season.
+
+```{r, warning=FALSE, message=FALSE}
+RussStats <- RussData(2017)  #get data from first year 
+for (Year in 2018:2019) {
+  RussStats <- RussStats %>% 
+    full_join(RussData(Year)) # full_join to combine all the tables
+}
+```
+
+The table tidying and transforming tasks are complete, and here's a quick glimpse of our data table:
+
+```{r}
+RussStats %>%  
+  head(3) %>%  
+  mykable() %>%  
+  scroll_box(width = "100%")
+```
+<br>
+The attributes of this tables are:
+
+- Season: 2016-2017, 2017-2018, 2018-2019
+- Result: whether Russ' team (OKC) recorded a win or a loss
+- Side: whether OKC is playing at home or on the road
+- Opp: opponent - the team that is playing against OKC
+- OppConf: the conference that the opponent is belong to. The NBA consists of 30 teams, divided into 2 conferences, the Eastern Conference and Western Conference
+- Minutes: Russ' total game playing time, in minutes
+- FG: number of Field Goals Russ made in a game. In basketball, a "field goal" made is just a basket scored on any shot, excluding the free throws.
+- FGA: number of Field Goals attempted by Russ
+- FG%: Russ' Field Goal Percentage in a game (FG/FGA)
+- 3P, 3PA, 3P%: number of 3-pointers made, attempted, and 3-point percentage in a game
+- FT, FTA, FT%: number of free throws made, attempted, and free throw percentage in a game
+- ORB, DRB, TRB: number of Offensive Rebounds, Defensive Rebounds, and Total Rebounds (ORB + DRB) in a game
+- PTS: number of Points Russ scored
+- AST: number of Assists Russ had
+- TripDbl: whether Russ recorded a triple-double
+- STL: number of Steals 
+- BLK: number of Blocks
+- TOV: number of Turnovers (losing possession of the ball to the opposing team before the ball hits the rim)
+- PF: number of Personal Fouls
+- +/- (plus/minus): a measure of a player's contribution to his team in a game. It is calculated by counting up points scored by the player’s team and points scored against the player’s team when that player is on the floor, then subtracting points against from points for. A positive +/- value for a player means his team outscored the opponent by that many points while he was on the court, whereas a negative +/- indicates that the opposing team outscored his team by 3 points while he was playing.
+
+After finishing our data wrangling jobs, we are now ready to explore what's interesting behind our data.
+
+# Basic Triple-Double Statistics
+
+Before taking a look of different models of triple-double, we'd like to look at some basic triple-double statistics of Russell Westbrook. First, let's find out how many games Russ did and did not record a triple-double during his last 3-year span with OKC. Below is a bar graph, followed by some summary statistics of Westbrook's total number of triple-doubles.
+
+```{r}
+RussStats %>%  
+  ggplot(mapping = aes(TripDbl, fill = TripDbl)) +
+  geom_bar()
+```
+
+```{r}
+RussStats %>%  
+  group_by(TripDbl) %>%  
+  summarise(Count = n(),
+            Prop = n()/nrow(RussStats)) %>%  
+  mykable()
+```
+
+Over the last 3 completed seasons of the 2010s, Russell Westbrook played a total of 234 games, and recorded a triple-double in 43.2% of the games (101/234), which means this statistic occured almost once in every two games Westbrook played.
+
+We'd also like to know what Westbrook's points, rebounds, and assists averages for each of his 3 triple-double seasons are:
+
+```{r}
+RussAvgStats <- RussStats %>%  
+  group_by(Season) %>%  
+  summarise(AvgPTS = round(mean(PTS), 2),
+            AvgAST = round(mean(AST), 2),
+            AvgREB = round(mean(TRB), 2)) 
+mykable(RussAvgStats)
+```
+
+Russ' assist and rebound averages are quite consistently across the 3 seasons. Meanwhile, there's a decrease in points per game after each season, especially a significant 6-point drop-off between 2016-17 and the following season, 2017-18. This decline in Westbrook's points can be explained by the addition of Paul George to the Thunder roster in the summer of 2017. The season before that, 2016-17, a common theme for every OKC games was a one-man Russell Westbrook show, where Russ dominated the basketball in almost every single possession and thus was a high-volume scorer. Once George arrived, he became Westbrook's co-star and took over some of Russ' offensive load, including getting buckets, and as a result, Westbrook's scoring average went down for each of the next two seasons.
+
+We're going to continue with the number of triple-double Russ recorded in each season.
+
+```{r}
+RussStats %>%  
+  ggplot(mapping = aes(TripDbl)) +
+  geom_bar(aes(fill = TripDbl)) +
+  facet_wrap(~ Season)
+```
+
+```{r}
+RussStats %>%  
+  group_by(Season) %>%  
+  summarise(NumTripDbl = count(TripDbl == "Yes"), 
+            Games = n(), 
+            Pct = round(NumTripDbl*100/Games, digits = 2)) %>% 
+  mykable()
+```
+
+We see that during the first year without Kevin Durant, Russ recorded a triple-double in more than half of the games (42/81). In 2018-19, though playing a slightly fewer amount of games compared to the previous 2 seasons, almost half of Russ' games resulted in a stat line of double figures in 3 categories. 2017-18 saw the fewest proportion of Russ' games with all double digits in points, rebounds, and assists; but despite this, he did manage to average a triple-double for the whole season. 
+
+We're also interested in looking at some notable figures recorded alongside triple-double. Let's find out how many triple-double games Westbrook had with 30, 40, 50 or more points; 20 or more assists; 0 turnovers; 10 or more turnovers (which is often called "triple-double trouble" in the NBA world); perfect shooting from the field and from the free-throw line; and less than 30 minutes of playing time. 
+
+```{r}
+RussStats %>%  
+  filter(TripDbl == "Yes") %>%  
+  summarise(`30+ PTS` = count(PTS >= 30),
+            `40+ PTS` = count(PTS >= 40),
+            `50+ PTS` = count(PTS >= 50),
+            `20+ AST` = count(AST >= 20),
+            `10+ TOV` = count(TOV >= 10), # triple-double trouble
+            `No TOV` = count(TOV == 0),
+            `No FG misses` = count (FG == FGA),
+            `No FT misses` = count (FT == FTA),
+            `< 30min` = count(Minutes < 30)) %>%  
+  mykable() %>% 
+  scroll_box(width = "100%")
+```
+<br>
+As shown by the above table, Westbrook had some remarkable performances including multiple triple-double games with more than 30, 40, 50 points, and at least 20 assists, which indicates how great he was during his last 3-year run with OKC. It is also worth noting that Westbrook had at least a turnover in every triple-double game (no 0 TOV games), which is understandable, due to his playing style and high offensive usage rate.
+
+In the next two sections, we're going to look at the connections between triple-double and some variables of both categorical and numerical types.
+
+# Triple-Double vs Categorical Variables
+
+First, we would like to find out whether each one these following categorical variables is a helpful predictor of whether Westbrook recorded a triple-double. They include the game result of Russ' team; OKC - win or lose; where the game was hosted - at OKC's house or away; and where OKC's opponent is from - East or West. Since we want to model the TripDbl variable as the response, it'd be a good idea to code it as a factor before getting the models.
+
+```{r}
+RussStats <- mutate(RussStats, TripDbl = as.factor(TripDbl))
+```
+
+## Game Result 
+
+The first relationship we are interested in looking at is between whether Westbrook tallies a triple-double and OKC's game result. We start off with a simple bar plot of number of triple-double associated with games won and lost, accompanied by a two-way table of counts.
+
+```{r}
+RussStats %>%  
+  ggplot(aes(x = Result, fill = TripDbl)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+tally(TripDbl ~ Result, data = RussStats)
+```
+
+```{r}
+round(tally(TripDbl ~ Result, format = "percent", data = RussStats), 2)
+```
+
+Just by looking at our basic summaries, we can tell that the chance of having a triple-double in wins is higher than in losses. Now we'd like to compare the likelihood of success, specifically the likelihood of recording a triple-double in a win and a loss of Westbrook. One way to do this is to use the above two-way table to calculate the empirical odds and empirical odds ratio between these two categories.
+
+```{r}
+W_odds <- 77/60
+W_odds 
+L_odds <- 24/73
+L_odds 
+OR <- W_odds/L_odds
+OR 
+```
+
+We get the empirical odds of having a triple-double in a win and in a loss are 1.28 and 0.33 respectively. Their odds ratio of 3.9 indicates that the empirical odds of notching a triple-double in a victory are 3.9 times higher than the odds of finishing with this stat line in a defeat.
+
+Now we're going fit a logistic regression model to illustrate the relationship between tripled-double outcome (Yes/No) and game result (Win/Loss). As a quick refresher, logistic regression is used to model a binary categorical response variable, meaning that there are exactly two outcome levels (yes/no, pass/fail, heads/tails, etc.) The general equation for a logistic regression model is of the form 
+
+$$\displaystyle log(odds) = logit(\pi) = log \left( \frac{\pi}{1- \pi} \right) = \beta_0 + \beta_1 X_{1} + \beta_2 X_{2} + \ldots + \beta_k X_{k}$$
+
+with main components: the log odds of success as the response variable; and a linear predictor $\beta_0 + \beta_1 X_1 + \beta_2 X_2 + \ldots + \beta_k X_k$, which is a linear combination of the explanatory variables (the $X$'s), with the $\beta$'s as the regression coefficients to be estimated.
+
+To get the logistic regression model for our first relationship, we use R's ``glm`` function, which stands for "generalized linear models". In addition to a model statement and a data argument, we also specify that we want logistic regression for a binary categorical variable ("family = binomial")
+
+```{r}
+ResultModel <- glm(TripDbl ~ Result, 
+                  family = binomial, 
+                  data = RussStats)
+```
+
+We can now make inferences about the term in our logistic regression model. Here we'd like to know if the likelihood of Westbrook accumulating double figures in three basketball statistics differs for wins and losses.
+
+```{r}
+summary(ResultModel)$coefficients
+```
+
+Since we get a (Wald) Z standardized test statistic of 4.67 and a small corresponding p-value of 0.000, we have evidence that the chance of Russ having a triple-double differ for the 2 types of game result - win and loss. Thus we have significant evidence that the result of the game helps predict whether a triple-double is recorded.
+
+Now let's construct and interpret a 95% confident interval for the Result Win coefficient. R gives us the 95% CI for the log odds ratio, so we'd exponentiate the endpoints to get the odds of Russ notching a triple-double for winning vs losing result.
+
+```{r, message=FALSE}
+confint(ResultModel)
+```
+
+```{r, message=FALSE}
+exp(confint(ResultModel))
+```
+
+So we get a 95% confident interval of (2.23, 7.01). Thus we're 95% confident that Russ has 2.23 to 7.01 times greater odds of recording a triple-doubles in wins than losses
+
+## Side
+
+The second relationship we're going to look at is between triple-double and OKC's playing side (home or away). As always, we begin with basic visual and numerical summaries of our variables.
+
+```{r}
+RussStats %>%  
+  ggplot(aes(x = Side, fill = TripDbl)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+SideTable <- tally(TripDbl ~ Side, data = RussStats)
+SideTable
+```
+
+```{r}
+round(tally(TripDbl ~ Side, format = "percent", data = RussStats), 2)
+```
+
+It doesn't seem like side has much of an effect on triple-double outcome according to the above graph and numbers. This time, instead of using the logistic regression approach, to test for a relationship between two categorical variables (triple-double and side in this case), we use Karl Pearson's infamous Chi-square test for association. The null hypothesis for this test is there's no relationship between the variables, and the alternate hypothesis is that the two variables are related. 
+
+```{r}
+chisq.test(SideTable)
+```
+
+Since we get a fairly large p-value of 0.679, we don't have evidence that triple-double and side are not related. In other words, Westbrook's team's playing side is not a helpful predictor for whether he achieved a triple-double.
+
+## Opponent's Conference
+
+The last categorical variable we're going to examine is opponent's conference. We'd like to find out if Westbrook's chance of tallying at least 10 points, 10 rebounds and 10 assists in the same game differ for contests against Eastern and Western opposing squads.
+
+```{r}
+RussStats %>%  
+  ggplot(aes(x = OppConf, fill = TripDbl)) +
+  geom_bar(position = "fill")
+```
+
+```{r}
+tally(TripDbl ~ OppConf, data = RussStats)
+```
+
+```{r}
+round(tally(TripDbl ~ OppConf, format = "percent", data = RussStats), 2)
+```
+
+It seems like Westbrook has a higher chance of having a triple-double when playing against an East team than against a West team. This makes sense to some degree, since over the last few years, West teams have been stronger and the East has been viewed as the weaker conference (or according to some - the "Leastern" conference.)
+
+```{r}
+OppConfModel <- glm(TripDbl ~ OppConf, 
+                  family = binomial, 
+                  data = RussStats)
+```
+
+We now take a look at the OppConf coefficient of the model and interpret it. Since the fitted slope of a logistic regression model tells us the log odds ratio, we’d back-transform with the corresponding exponential function to get the odds ratio.
+
+```{r}
+coef(OppConfModel)
+```
+
+```{r}
+exp(coef(OppConfModel)[2])
+```
+
+So we get an odds ratio value of about 0.57, which in context means Westbrook has 0.57 times greater odds of tallying a triple-double in a game against a West team than in a contest with a team from the East. We can then make statistical inference to draw conclusions about the triple double - opponent's conference relationship.
+
+```{r}
+summary(OppConfModel)$coefficients
+```
+
+We get a p-value of 0.043, which is very close to our usual cutoff, 0.05, so it's pretty marginal. But we can still conclude that West and East teams are different in terms of their chance of allowing a Westbrook triple-double when playing the Thunder. Hence, opponent's conference is a helpful predictor for triple-double.
+
+# Triple-Double vs Quantitative Variables
+
+Our next goal is to examine the relationships between triple-double and some quantitative variables. Here we're going to take a look at Westbrook's playing time (in minutes), and plus/minus value.
+
+## Minutes
+
+It's now time to determine whether Westbrook's game playing time contributes to the prediction of whether he has a triple-double. Below are a boxplot and some basic descriptive statistics of Russ' minutes played, broken down by triple-double outcomes.
+
+```{r}
+RussStats %>%  
+  ggplot(aes(y = Minutes, color = TripDbl)) + 
+  geom_boxplot() +
+  theme(axis.text.x=element_blank()) +
+  xlab("Triple-Double")
+```
+
+```{r}
+mykable(favstats(Minutes ~ TripDbl, data = RussStats))
+```
+
+From these summaries, we can see that Russ tends to play more minutes in games that he achieved a triple-double and in games that he did not. This actually quite makes sense, since occasionally, in games that he was 1 assist or 1 rebound shy of completing a triple-double, Westbrook usually stayed on the court for a few extra minutes and tried to stuff the stat sheet. 
+
+We then go on to dig deeper into our analysis by fitting a simple logistic regression model with triple-double as the categorical response and Minutes as the numerical independent variable.
+
+```{r}
+MinModel <- glm(TripDbl ~ Minutes, 
+                family = binomial, 
+                data = RussStats)
+```
+
+Just as before, we can interpret the slope coefficient for our model term, which in this case is Minutes. And again, because our fitted slope represents the log odds ratio, we have to back-transform in order to get the actual odds ratio.
+
+```{r}
+coef(MinModel)
+```
+
+```{r}
+exp(coef(MinModel)[2])
+```
+
+So an odds ratio for minutes of 1.10 suggests that every extra 1 minute of playing time multiplies the odds of Russ recording a triple-double by 1.10.
+
+And then, we can explore statistical inference tools for our model, namely hypothesis tests and confidence intervals.
+
+```{r}
+summary(MinModel)$coefficients
+```
+
+R's output of Z = 2.67 and p-value = 0.008 leads us to the conclusion that Westbrook's triple-double and non-triple-double games differ in his playing time. So Minutes is a helpful predictor for whether Russ was able to finish a game with double figures in three major statistical columns of the box score. As a side note, we can also use ANOVA to confirm this association between triple-double and minutes played.
+
+```{r}
+MinAnova <- aov(Minutes ~ TripDbl,
+                  data= RussStats)
+summary(MinAnova)
+```
+
+With F = 7.82 and p-value = 0.006, we have evidence that the mean playing time differs for the two triple-double groups.
+
+Similar to previous models, we can get a 95% confidence interval for the odds ratio based on the Minutes coefficient of this model, after exponentiating.
+
+```{r, message=FALSE}
+exp(confint(MinModel))
+```
+
+Accordingly, we're 95% confident that every extra minute of playing time is associated with multiplying the odds of having triple-double by a factor of 1.03 to 1.19.
+
+```{r}
+AvgMin <- mean(RussStats$Minutes)
+AvgMin
+```
+
+During his last 3 OKC years, Westbrook averaged close to 36 minutes/game. We now take a look at what this model says about Westbrook's chance of having a triple-double for this typical playing time value. Again, since this is a fitting for the logit model, we have to back-transform to get these desired values.
+
+```{r}
+MinData <- data.frame(Minutes = AvgMin)
+predict(MinModel, MinData)
+Logit <- predict(MinModel, MinData)
+Odds <- exp(Logit)
+Odds
+predict(MinModel, MinData, type = "response")
+```
+
+We get an odds of 0.75 and a probability of 0.43, which means Westbrook has about a 3:4 odds and a 43% chance of recording a triple-double in a game that he plays 36 minutes.
+
+## Plus/Minus
+
+As mentioned before, plus/minus is a basketball metric that reflects how well a player's team did while he is on the court. We would like to see if there's an association between plus/minus and triple-double. As always, we begin with some simple data exploration summaries of our variables of interest.
+
+```{r}
+RussStats <- rename(RussStats, PlusMinus = `+/-`)
+```
+
+```{r}
+RussStats %>%  
+  ggplot(aes(y = PlusMinus, color = TripDbl)) + 
+  geom_boxplot() +
+  theme(axis.text.x=element_blank()) +
+  xlab("Triple-Double")
+```
+
+```{r}
+mykable(favstats(PlusMinus ~ TripDbl, data = RussStats))
+```
+
+In his triple-double games, Westbrook tends to have more positive plus/minus, meaning that his team is more likely to perform better when he's on the court in these games. Let's now fit a logistic regression model to confirm this relationship.
+
+```{r}
+PlusMinusModel <- glm(TripDbl ~ PlusMinus, 
+                  family = binomial, 
+                  data = RussStats)
+summary(PlusMinusModel)$coefficients
+```
+
+With Z = 3.41 and p-value = 0.001, Westbrook's plus/minus indeed helps the prediction of his triple-double outcome. We can then get the fitted slope for PlusMinus, and also get a confident interval for this coefficient. 
+
+```{r}
+exp(coef(PlusMinusModel)[2])
+```
+
+```{r, message=FALSE}
+exp(confint(PlusMinusModel))
+``` 
+
+So every 1 point increment in plus/minus multiplies the odds of having triple-double by 1.04. And we're 95% confident that every extra 1 point of the difference between points scored and points allowed when Russ is in the game is associated with multiplying the odds of having triple-double by a factor of 1.02 to 1.07.
+
+```{r}
+AvgPM <- mean(RussStats$PlusMinus) 
+mykable(AvgPM)
+```
+
+During his last 3 OKC seasons, Westbrook averaged a plus/minus statistic of about 4. We're interested in seeing what this model predicts for his odds and probability of having a triple-double when having this typical +/-. 
+
+```{r}
+PMData <- data.frame(PlusMinus = AvgPM)
+Logit <- predict(PlusMinusModel, PMData)
+Odds <- exp(Logit)
+Odds
+Prob <- predict(PlusMinusModel, PMData, type = "response")
+Prob
+```
+
+We get an odds of 0.75 and a probability of 0.428 (almost identical to the values when having Minutes as a predictor), which means Westbrook has a 3:4 odds and a 42.8% chance of recording a triple-double with a +4 point differential when playing.
+
+## Minutes, Plus/Minus, and Result
+
+The last model we're going to take a look at is a multiple logistic regression model of predicting triple-double, with Result, Minutes, and Plus/Minus - the 3 factors that gave us the best single (one-predictor) models above - as the 3 predictors.
+
+```{r}
+MultiModel <- glm(TripDbl ~ Result + Minutes + PlusMinus, 
+                  family = binomial, 
+                  data = RussStats)
+```
+
+```{r}
+summary(MultiModel)$coefficients
+```
+
+Based on the coefficients table, we don't have evidence that Plus/Minus is a helpful predictor of triple-double, after accounting for Win and Minutes. On the other hand, Win and Minutes are helpful in predicting whether Westbrook had a triple-double, after accounting for the other two factors.
+
+Lastly, we're going to carry out a drop-in deviance test to check whether the two numerical factors Minutes and Plus/Minus together are significant predictors of Triple-double, after accounting for Result. The null hypothesis is the full model (Result, Minutes, Plus/Minus) is the same as the reduced model with Result as the only predictor for Triple-double, whereas the alternative hypothesis is the full model is better than the reduced model. To get the answer, we have to get the difference in deviances and degrees of freedom between the full and reduced model, which will then allow us to obtain a p-value from the upper tail of a Chi-square distribution.
+
+```{r}
+anova(ResultModel, MultiModel, test = "Chisq")
+```
+
+The drop-in-deviance test statistic (G) is 296.4 - 238.8 = 12.6 on 232 - 230 = 2 degrees of freedom, producing 
+a p-value of 0.002. Hence this provides us evidence that the full model is better than the reduced model, thus Minutes and Plus/Minus together are helpful in explaining triple-double outcome, over and above game result.
+
+# A Fun Data Visualization Exploration
+
+The last thing we'd like to do for this project is to study some visualization techniques with this data. What we are interested in observing is the number of triple-double Russell Westbrook recorded versus every NBA teams, during the course of his last 3 years as OKC's starting point guard. Rather than just looking at basic numerical and summaries of this value, why don't we plot number of times that Westbrook recorded a triple-double against each them to their corresponding location on the map?
+
+In order to do this, the first thing we need to do is to get the team's coordinates (latitude and longitude). We once again use web scraping to accomplish this extra piece of data. Fortunately for us, the Wikipedia page of the NBA has all the team's coordinates in a data table, so we're going to harvest the data from there. After the data is collected, we perform some data transformation tasks to get a table of each NBA team and their latitude and longitude.
+
+```{r}
+NBAWiki <- read_html("https://en.wikipedia.org/wiki/National_Basketball_Association")
+TeamsTable <- html_table(NBAWiki, fill = TRUE)[[3]]
+```
+
+```{r}
+library(biogeo) #geography data
+
+TeamLocation <- TeamsTable[,1:8] %>%  
+  filter(!(Team %in% c("Eastern Conference", "Western Conference"))) %>%  
+  select(Team, Coordinates) %>% 
+  separate(Coordinates, c("Coord1", "Coord2", "Coord3"), " / ") %>%  
+  separate(Coord1, c("lat", "long"), sep = " ") %>%  
+  dmsparse(x = "long", y = "lat", id = "Team") %>%   ##transform coordinate data
+  select(ID, x, y) %>%  
+  rename(Team = ID, long = x, lat = y) %>%
+  arrange(Team)
+```
+
+Here's a quick glimpse of our team location table:
+
+```{r}
+mykable(TeamLocation %>%  head(3))
+```
+
+We then obtain a table of all OKC's opponents and their coordinates data, by filtering out the Thunder from the previous coordinates table.
+
+```{r}
+OppAbbrev <- sort(unique(RussStats$Opp))
+
+OppLocation <- TeamLocation %>%  
+  filter(Team != "Oklahoma City Thunder") %>%  
+  mutate(Opp = OppAbbrev)
+```
+
+And now let's get the triple-double count of Russell Westbrook against every NBA team not named Oklahoma City Thunder.
+
+```{r}
+GamesCount <- RussStats %>%   
+  filter(TripDbl == "Yes") %>%
+  group_by(Opp) %>%   
+  summarise(count = n()) %>%   
+  arrange(desc(count))
+```
+
+```{r}
+mykable(GamesCount %>% head(5))
+```
+
+```{r}
+GamesCount %>% filter(count > 0) %>% nrow()
+```
+
+So from 2016 to 2019, Westbrook tallied a total of 8 triple-doubles against OKC's in-division rival, the New Orleans Pelicans, more than any other team in the league. Next up on the list is Utah with 6 triple-doubles conceded to Westbrook, followed by Indiana and Memphis, both with a count of 5. It is worth noticing that Westbrook recorded at least one triple-double against all 29 NBA opponents during this 3-year span, which is astonishing.
+
+For our first mapping approach, we utilize R's ``maps`` package, which contains some functions we can use to map the number of triple-double recorded by Westbrook with the corresponding opponent.
+
+```{r, message=FALSE}
+library(maps)
+```
+
+```{r}
+OppInfo <- full_join(OppLocation, GamesCount, by = "Opp")
+
+USMap <- map_data("usa")     # get US map
+States <- map_data("state")  # get state map
+```
+
+```{r, fig.width = 9}
+USMap %>%  
+  ggplot(mapping = aes(x = long, y = lat)) +
+  borders("state") +
+  geom_polygon(mapping = aes(group = group)) +
+  geom_polygon(data = States, mapping = aes(x = long, y = lat, group = group),
+               fill = "lightyellow", color = "grey") +
+  geom_point(data = OppInfo, mapping = aes
+             (x = long, y = lat, size = count, color = count)) +
+  geom_text(data = OppInfo, mapping = aes
+             (label = Opp), nudge_y = -0.7) +
+  scale_size(breaks = 1:8) + 
+  scale_color_gradient(low="blue", high="red", breaks = 1:8) +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid  = element_blank())
+```
+
+This map indicates the locations of teams on the US map, with each NBA team being represented by each plotted point. The bigger the point, the more triple-doubles Russ had against the team represented by that point. It easy to recognize New Orleans and Utah as the two teams with most triple-doubles conceded to Westbrook, and also Charlotte (represented by the tiniest dot) as Westbrook's "triple-double kryptonite", as he only had one triple-double game in three years when playing against the team owned by Michael Jordan.
+
+However, this map has some limitations, as we can't zoom in to view teams that are in regions having multiple NBA squads, and also tell exactly how many triple-double each team concedes. For that reason, we're now going to look at a fancier, more versatile and interactive mapping method.
+
+We'll need functions from the following packages, all of which will play a huge role in this second mapping approach.
+
+```{r, message=FALSE}
+library(sf) # encode spatial data
+library(mapview)
+```
+
+This interactive method allows us to change the zoom scale, choose between different map-viewing options (street map, topographic map, etc.), and most importantly see what each point represent by moving the pointer closer enough to the points or clicking on the points. Let's first look at where each NBA team is located on the world map.
+
+```{r}
+NBATeams <- st_as_sf(TeamLocation, coords = c("long", "lat"), crs = 4326) #st_as_sf: parse
+mapview(NBATeams, legend = FALSE)
+```
+<br>
+And now we can map all OKC's opponents and their triple-double counts when facing Westbrook.
+
+```{r}
+Opponents <- NBATeams %>%  
+  filter(Team != "Oklahoma City Thunder") %>%  
+  mutate(Opp = OppAbbrev) %>%  
+  full_join(GamesCount, by = "Opp") %>%  
+  select(Team, count)
+```
+
+```{r}
+mapview(Opponents[],      
+        zcol = "count",     # variable to be represented
+        cex = "count",      # set circle radius
+        legend = TRUE,
+        col.regions = colorRampPalette(c("purple", "yellow")),
+        alpha.regions = 1.5,
+        layer.name = "count")  
+```
+<br>
+As we can see, compared to the fair-to-say limited and plain vanilla first approach, this second mapping approach evidently gives us better mapping output, in terms of versatility, user-friendliness, and just simply coolness.
+
+# Conclusion and Future Work
+
+Overall, we have looked at some basic triple-double related figures of Russell Westbrook as well as analyzed the relationships between triple-double and some key basketball statistics. We have found that game result and opponent's conference are useful categorical predictors of triple-double, whereas playing side is not. Additionally, quantitative variables like Westbrook's playing time and plus/minus are effective in predicting whether Westbrook recorded double figures in three statistical categories in a basketball game. We also got a taste of some new visualization tools of mapping locations of observations onto the global map.
+
+In the future, there are some additions we could make and some other topics we could explore. We could use a larger dataset, with not just data from Westbrook's last 3 OKC seasons, but instead data throughout his career. Thus this would allow us to use randomization to select the cases, and hence would be able to generalize the results to a larger population of all Westbrook NBA games. In terms of model selection, we could try to determine the best subset of predictors for triple-double, or identify unusual points in regression.
+
+Analysis-wise, looking at more complicated figures related to triple-doubles could be an option, data on topics like at what point of time in a game a triple-double is fulfilled, or streaks of triple-doubles could be collected and analyzed. In addition, instead of predicting triple-double outcomes, we could also predict other basketball statistics, most desirably, game results for OKC. One way would be to use factors such as points scored or shooting percentage to predict outcomes not just for individual games, but for an entire season, and then compare the predicted results with the actual results. More ambitiously, we could get some simulations involved and keep track of all sorts of metrics for Westbrook and his team.
