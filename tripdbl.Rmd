@@ -27,7 +27,7 @@ Since triple-double has been such an interesting basketball statistics over the 
 
 # Data Importing and Tidying
 
-Before we begin, the following packages are loaded to help us with all stages of this project.
+Before we begin, the following packages are loaded to help us with all stages of this project. 
 
 ```{r, message=FALSE}
 library(tidyverse)
