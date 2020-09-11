@@ -541,7 +541,7 @@ TeamLocation <- TeamsTable[,1:8] %>%
   select(Team, Coordinates) %>% 
   separate(Coordinates, c("Coord1", "Coord2", "Coord3"), " / ") %>%  
   separate(Coord1, c("lat", "long"), sep = " ") %>%  
-  dmsparse(x = "long", y = "lat", id = "Team") %>%   ##transform coordinate data
+  dmsparse(x = "long", y = "lat", id = "Team") %>%   # transform coordinate data
   select(ID, x, y) %>%  
   rename(Team = ID, long = x, lat = y) %>%
   arrange(Team)
