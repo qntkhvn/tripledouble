@@ -13,7 +13,7 @@ RussData <- function(Year){ # takes in the season end year
   RussStats <- filter(RussStats, GS == "1") # filter out games he didn't play
   RussStats[RussStats == "CHO"] <- "CHA" # correct abbreviation for Charlotte
   
-  # Western Conference teams vector for further usage
+  # Western Conference teams
   WestTeams <- c("LAL", "UTA", "LAC", "DEN", "DAL", "HOU", "OKC", "MEM", "SAS", "PHO", "POR", "NOP", "SAC", "MIN", "GSW")
   
   # make sure all the stats are of numeric type
